@@ -1,5 +1,5 @@
 # Step 1: Base image (CUDA 11.8, Ubuntu 22.04)
-FROM pytorch/pytorch:1.7.1-cuda11.0-cudnn8-runtime
+FROM nvidia/cuda:11.8.0-cudnn8-runtime-ubuntu22.04
 
 # Step 2: Minimal OS deps + env
 ENV DEBIAN_FRONTEND=noninteractive \
@@ -14,7 +14,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     update-ca-certificates && \
     rm -rf /var/lib/apt/lists/*
 
-# Step 3: Easy packages via requirements.txt
+# Step 3: PyTorch 1.7.1 (CUDA 11.8)
+RUN python -m pip install --upgrade pip && \
+    pip install "torch==1.7.1" torchvision torchaudio \
+        --index-url https://download.pytorch.org/whl/cu118
+
+# Step 4: Easy packages via requirements.txt
 WORKDIR /app
 COPY requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir -r /app/requirements.txt --no-deps
