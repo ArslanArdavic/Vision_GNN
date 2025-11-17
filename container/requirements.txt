@@ -1,0 +1,6 @@
+timm==0.3.2
+torchprofile==0.0.4
+numpy==1.21.6
+tqdm
+pandas==1.3.5
+matplotlib
