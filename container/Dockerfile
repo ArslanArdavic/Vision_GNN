@@ -10,7 +10,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
 # Easy packages via requirements.txt
 WORKDIR /app
 COPY requirements.txt /app/requirements.txt
-RUN pip install --no-cache-dir -r /app/requirements.txt --no-deps
+RUN pip install --no-cache-dir -r /app/requirements.txt
 
 # Option A: Minimal pass-through entrypoint
 COPY entrypoint.sh /entrypoint.sh

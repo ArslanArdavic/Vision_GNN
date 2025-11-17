@@ -1,0 +1,14 @@
+{
+  "name": "Vision GNN",
+  "image": "ghcr.io/arslanardavic/vig",
+    // Where VS Code opens the project *inside* the container
+  "workspaceFolder": "/workspace",
+
+  // Bind-mount your local repo into the container
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind",
+
+  // Enable GPU and give more shared memory (for DataLoaders etc.)
+  "runArgs": [
+    "--gpus=all"
+  ]
+}
