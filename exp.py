@@ -64,13 +64,13 @@ args = {
     "decay_rate": 0.1,
 
     # Augmentation & regularization
-    "no_aug": False,
+    "no_aug": True,
     "repeated_aug": False,
-    "scale": [0.08, 1.0],
-    "ratio": [3.0 / 4.0, 4.0 / 3.0],
-    "hflip": 0.5,
+    "scale": [1.0, 1.0],
+    "ratio": [1.0, 1.0],
+    "hflip": 0.0,
     "vflip": 0.0,
-    "color_jitter": 0.4,
+    "color_jitter": 0.0,
     "aa": None,
     "aug_splits": 0,
     "jsd": False,
@@ -81,12 +81,12 @@ args = {
     "mixup": 0.0,
     "cutmix": 0.0,
     "cutmix_minmax": None,
-    "mixup_prob": 1.0,
-    "mixup_switch_prob": 0.5,
+    "mixup_prob": 0.0,
+    "mixup_switch_prob": 0.0,
     "mixup_mode": "batch",
     "mixup_off_epoch": 0,
-    "smoothing": 0.1,
-    "train_interpolation": "random",
+    "smoothing": 0.0,
+    "train_interpolation": None,
     "drop": 0.0,
     "drop_connect": None,
     "drop_path": None,
@@ -151,16 +151,121 @@ class OptInit:
             self.use_stochastic = False # stochastic for gcn, True or False
             self.drop_path = drop_path_rate
 
-def train_data():
+
+
+def load_val_data(out_dir="./outputs/data/val"):
+    # Device Setting
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print("Using device:", device)
 
+    # Model Initialization
     opt = OptInit()
     model = DeepGCN(opt=opt)
     model.to(device)
 
+    # Validation Data 
     data_config = resolve_data_config(args, model=model, verbose=args["local_rank"] == 0)
-    print("Input size data_config: ", data_config['input_size'])
+    val_dir = "./data/val/"    # /stratch/dataset/imagenet-object-localization-challenge/ILSVRC/Data/CLS-LOC/val/
+    if not os.path.exists(val_dir):
+        print('Validation folder does not exist at: {}'.format(val_dir))
+        exit(1)
+
+    dataset_val = Dataset(val_dir)
+    
+    loader_val  = create_loader(
+        dataset_val,
+        input_size=data_config['input_size'],
+        batch_size=args["batch_size"],
+        is_training=False,
+        use_prefetcher= not args["no_prefetcher"],
+        interpolation=data_config['interpolation'],
+        mean= data_config['mean'],
+        std=data_config['std'],
+        num_workers=args["workers"],
+        distributed=args["distributed"],
+        crop_pct=data_config['crop_pct'],
+        pin_memory=args["pin_mem"],
+    )
+
+    # Save 5 validation images 
+    os.makedirs(out_dir, exist_ok=True)
+    for batch_idx, (input, target) in enumerate(loader_val):  
+        input.cpu()
+        target.cpu()
+        print("Val image label: ", target)
+        save_image(input[0], f"{out_dir}/image_{batch_idx}.jpg")
+        if batch_idx == 5:
+            break
+
+def load_train_data(out_dir="./outputs/data/train"):
+    # Device Setting
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print("Using device:", device)
+
+    # Model Initialization
+    opt = OptInit()
+    model = DeepGCN(opt=opt)
+    model.to(device)
+
+    # Training Data 
+    data_config = resolve_data_config(args, model=model, verbose=args["local_rank"] == 0)
+    train_dir = "./data/train/"    # /stratch/dataset/imagenet-object-localization-challenge/ILSVRC/Data/CLS-LOC/train/
+    if not os.path.exists(train_dir):
+        print('Training folder does not exist at: {}'.format(train_dir))
+        exit(1)
+    dataset_train = Dataset(train_dir)
+
+    num_aug_splits = 0
+    collate_fn = None
+    loader_train = create_loader(
+        dataset_train,
+        input_size=data_config['input_size'],
+        batch_size=args["batch_size"],
+        is_training=True,
+        use_prefetcher= not args["no_prefetcher"],
+        no_aug=args["no_aug"],
+        re_prob=args["reprob"],
+        re_mode=args["remode"],
+        re_count=args["recount"],
+        re_split=args["resplit"],
+        scale=args["scale"],
+        ratio=args["ratio"],
+        hflip=args["hflip"],
+        vflip=args["vflip"],
+        color_jitter=args["color_jitter"],
+        auto_augment=args["aa"],
+        num_aug_splits=num_aug_splits,
+        interpolation=args["train_interpolation"],
+        mean=data_config['mean'],
+        std=data_config['std'],
+        num_workers=args["workers"],
+        distributed=args["distributed"],
+        collate_fn=collate_fn,
+        pin_memory=args["pin_mem"],
+        use_multi_epochs_loader=args["use_multi_epochs_loader"],
+        repeated_aug=args["repeated_aug"]
+    )
+
+    # Save 5 training images 
+    os.makedirs(out_dir, exist_ok=True)
+    for batch_idx, (input, target) in enumerate(loader_train):  
+        input.cpu()
+        save_image(input[0], f"{out_dir}/image_{batch_idx}.jpg")
+        if batch_idx == 5:
+            break
+
+def train_data():
+    # Device Setting
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print("Using device:", device)
+
+    # Model Initialization
+    opt = OptInit()
+    model = DeepGCN(opt=opt)
+    model.to(device)
+
+    # Training Data 
+    data_config = resolve_data_config(args, model=model, verbose=args["local_rank"] == 0)
     train_dir = "./data/train/"    
     if not os.path.exists(train_dir):
         print('Training folder does not exist at: {}'.format(train_dir))
@@ -198,17 +303,16 @@ def train_data():
         repeated_aug=args["repeated_aug"]
     )
 
-    train_loss_fn = nn.CrossEntropyLoss().cuda()
 
+    # Loss formulation & Optimizer
+    train_loss_fn = nn.CrossEntropyLoss().cuda()
     args_ns = SimpleNamespace(**args)
     optimizer = create_optimizer(args_ns, model)
 
     # Training
-    EPOCH_MAX = 1
+    EPOCH_MAX = 0
     for epoch in range(0, EPOCH_MAX):
         for batch_idx, (input, target) in enumerate(loader_train):    
-            print("Input shape: ", input.shape)  
-            print("Target shape: ", target.shape)  
             with suppress():
                 output = model(input)
                 loss = train_loss_fn(output, target)
@@ -216,8 +320,7 @@ def train_data():
             loss.backward()
             optimizer.step()
 
-    # Test
-    model.eval()
+    # Test Data Preparation
     test_data = []
     test_targets = [] 
 
@@ -227,55 +330,23 @@ def train_data():
         test_data.append(input) 
         test_targets.append(target)
 
-    out_dir = "./outputs/data/test"
-    os.makedirs(out_dir, exist_ok=True)
-    for i, test_image in enumerate(test_data):
-        save_image(test_image[0], f"{out_dir}/image_{i}.jpg")
-
     test_data = torch.cat(test_data, dim=0)
     test_targets = torch.cat(test_targets, dim=0)
     test_data.to(device) 
     test_targets.to(device) 
 
+    # Test Inference
+    model.eval()
     output = model(test_data)
     print("Output shape:", output.shape)
     indices = torch.argmax(output, dim=1)  
     print("Predicted class indices per image:", indices)
     print("Targets:", test_targets)
 
-def inference():
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print("Using device:", device)
 
-    img_path = 'fig/ILSVRC2012_val_00000075.JPEG'
-    img = Image.open(img_path).resize((224, 224))    
-    img_data = torch.unsqueeze(pre_transforms(img), 0)
-    #img_data = img_data.repeat(5, 1, 1, 1)
-    img_data = img_data.to(device)
-    #print(img_data.shape)
-    
-    #img_data = torch.rand(5, 3, 224, 224).to(device)
-    #stem = Stem().to(device)
-    #a = stem(img_data)
-    #print(a.shape)
 
-    opt = OptInit()
-    model = DeepGCN(opt=opt)
-    #print(model)
-    model.to(device)
-    model.eval()
-    output = model(img_data)
-
-    print("Output shape:", output.shape)
-    indices = torch.argmax(output, dim=1)  
-    print("Predicted class indices per image:", indices)
 
 if __name__ == "__main__":
-
-    train_data()
-    exit(1)
-
-
-
-
-
+    # load_train_data()
+    load_val_data()
+    pass

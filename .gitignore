@@ -1,1 +1,4 @@
 /data/train
+/data/val
+/.vscode/
+/outputs/
