@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=val_prep
-#SBATCH --output=slurm/log/greeting_%j.out
-#SBATCH --error=slurm/log/greeting_%j.err
+#SBATCH --output=slurm/log/val_prep_%j.out
+#SBATCH --error=slurm/log/val_prep_%j.err
 #SBATCH --time=24:00:00
 #SBATCH --gpus=1
 #SBATCH --cpus-per-gpu=8

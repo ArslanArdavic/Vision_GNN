@@ -19,7 +19,7 @@ args = {
 
     # Config / data
     "config": "",                          # -c / --config
-    "data": "./data/train/",       # positional "data" (you must set this)
+    "data": "./data/",       # positional "data" (you must set this)
 
     # Dataset / model
     "model": "vig_ti_224_gelu",
@@ -209,7 +209,8 @@ def load_train_data(out_dir="./outputs/data/train"):
 
     # Training Data 
     data_config = resolve_data_config(args, model=model, verbose=args["local_rank"] == 0)
-    train_dir = "./data/train/"    # /stratch/dataset/imagenet-object-localization-challenge/ILSVRC/Data/CLS-LOC/train/
+    train_dir = "./data/train/"    
+    #train_dir = /stratch/dataset/imagenet-object-localization-challenge/ILSVRC/Data/CLS-LOC/train/
     if not os.path.exists(train_dir):
         print('Training folder does not exist at: {}'.format(train_dir))
         exit(1)
@@ -254,7 +255,7 @@ def load_train_data(out_dir="./outputs/data/train"):
         if batch_idx == 5:
             break
 
-def train_data():
+def train_data(train_dir="/stratch/dataset/imagenet-object-localization-challenge/ILSVRC/Data/CLS-LOC/train/"):
     # Device Setting
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print("Using device:", device)
@@ -266,7 +267,7 @@ def train_data():
 
     # Training Data 
     data_config = resolve_data_config(args, model=model, verbose=args["local_rank"] == 0)
-    train_dir = "./data/train/"    
+       
     if not os.path.exists(train_dir):
         print('Training folder does not exist at: {}'.format(train_dir))
         exit(1)
@@ -342,8 +343,6 @@ def train_data():
     indices = torch.argmax(output, dim=1)  
     print("Predicted class indices per image:", indices)
     print("Targets:", test_targets)
-
-
 
 
 if __name__ == "__main__":
