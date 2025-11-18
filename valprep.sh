@@ -1,4 +1,4 @@
-cd ./imageNet_sub/validation
+cd ./data/val/
 mkdir -p n01440764	
 mkdir -p n01443537	
 mkdir -p n01484850	
